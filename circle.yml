@@ -1,0 +1,51 @@
+version: 2
+executorType: docker
+containerInfo:
+  - image: golang:1.8.3
+    cmd: ["/bin/bash"]
+stages:
+  build:
+    parallel: 1
+    workDir: /go/src/github.com/nmiyake/dockergen
+    environment:
+      - PROJECT: dockergen
+      - DOCKER_VERSION: 17.03.0-ce
+    steps:
+      - type: checkout
+      - type: cache-restore
+        key: godel-{{ checksum "godelw" }}
+      - type: shell
+        name: "Verify godel version"
+        command: ./godelw version
+      - type: cache-save
+        key: godel-{{ checksum "godelw" }}
+        paths:
+          - /root/.godel
+      - type: shell
+        name: "Install Docker client"
+        command: |
+                  set -x
+                  curl -L -o /tmp/docker-$DOCKER_VERSION.tgz https://get.docker.com/builds/Linux/x86_64/docker-$DOCKER_VERSION.tgz
+                  tar -xz -C /tmp -f /tmp/docker-$DOCKER_VERSION.tgz
+                  mv /tmp/docker/* /usr/bin
+      - type: setup_remote_docker
+      - type: shell
+        name: "Verify Go version"
+        command: go version
+      - type: shell
+        name: "Install packages"
+        command: go install ./...
+      - type: shell
+        name: "Create test output directory"
+        command: mkdir -p "/tmp/test-results/$PROJECT"
+      - type: shell
+        name: "Run godel verification"
+        command: ./godelw verify --apply=false --junit-output="/tmp/test-results/$PROJECT/$PROJECT-tests.xml"
+      - type: shell
+        name: "Run godel integration tests"
+        command: ./godelw test --tags=integration --junit-output="/tmp/test-results/$PROJECT/$PROJECT-integration-tests.xml"
+      - type: test-results-store
+        path: /tmp/test-results
+      - type: artifacts-store
+        path: /tmp/test-results
+        destination: test-results
