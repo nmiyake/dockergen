@@ -1,7 +1,7 @@
 version: 2
 executorType: docker
 containerInfo:
-  - image: golang:1.8.3
+  - image: nmiyake/go:go-1.8.3-docker-17.03.0-ce-t39
     cmd: ["/bin/bash"]
 stages:
   build:
@@ -21,13 +21,6 @@ stages:
         key: godel-{{ checksum "godelw" }}
         paths:
           - /root/.godel
-      - type: shell
-        name: "Install Docker client"
-        command: |
-                  set -x
-                  curl -L -o /tmp/docker-$DOCKER_VERSION.tgz https://get.docker.com/builds/Linux/x86_64/docker-$DOCKER_VERSION.tgz
-                  tar -xz -C /tmp -f /tmp/docker-$DOCKER_VERSION.tgz
-                  mv /tmp/docker/* /usr/bin
       - type: setup_remote_docker
       - type: shell
         name: "Verify Go version"
