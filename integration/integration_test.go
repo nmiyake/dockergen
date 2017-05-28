@@ -136,6 +136,32 @@ Step 3/3 : ENV world friends.+
 Successfully built [0-9a-f]+.+`,
 		},
 		{
+			name: "build with inner for loop that uses variable",
+			config: `
+build-id-var: CIRCLE_BUILD_NUM
+tag-suffix: -t{{BuildID}}
+template-vars:
+  myTmplVar1: myTmplVal1
+builds:
+  test-template:
+    docker-template: Dockerfile_template.txt
+    tag: testuser/foo:bar-{{.loopVar1}}
+    for:
+      loopVar1:
+        - "{{.myTmplVar1}}"
+`,
+			filesToWrite: map[string]string{
+				"Dockerfile_template.txt": `FROM scratch
+ENV foo {{.myTmplVar1}}
+ENV bar {{.loopVar1}}
+`,
+			},
+			wantRegexp: `(?s).+
+Step 2/3 : ENV foo myTmplVal1.+
+Step 3/3 : ENV bar myTmplVal1.+
+Successfully built [0-9a-f]+.+`,
+		},
+		{
 			name: "build with outer and inner for loop",
 			config: `
 build-id-var: CIRCLE_BUILD_NUM

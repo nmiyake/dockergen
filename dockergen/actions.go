@@ -83,7 +83,7 @@ func runInFor(f func(map[string]string) error, forVars map[string][]string, buil
 	for i := 0; i < len(forVars[sortedForVarNames[0]]); i++ {
 		// set variable values for this iteration
 		for _, currForVar := range sortedForVarNames {
-			currForVarResult, err := executeGoTemplate(forVars[currForVar][i], buildID, nil)
+			currForVarResult, err := executeGoTemplate(forVars[currForVar][i], buildID, evaluatedVarMap)
 			if err != nil {
 				return errors.Wrapf(err, "failed to execute template for 'for' variable %s at index %d", currForVar, i)
 			}
