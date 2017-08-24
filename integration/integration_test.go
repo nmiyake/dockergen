@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBuild(t *testing.T) {
+func TestBuildAndTag(t *testing.T) {
 	cli, err := products.Bin("dockergen")
 	require.NoError(t, err)
 
@@ -27,10 +27,11 @@ func TestBuild(t *testing.T) {
 	require.NoError(t, err)
 
 	for i, currCase := range []struct {
-		name         string
-		config       string
-		filesToWrite map[string]string
-		wantRegexp   string
+		name            string
+		config          string
+		filesToWrite    map[string]string
+		wantBuildRegexp string
+		wantTagRegexp   string
 	}{
 		{
 			name: "simple build with defaults",
@@ -45,9 +46,11 @@ builds:
 ENV foo bar
 `,
 			},
-			wantRegexp: `(?s).+
+			wantBuildRegexp: `(?s).+
 Step 2/2 : ENV foo bar.+
 Successfully built [0-9a-f]+.+`,
+			wantTagRegexp: `testuser/foo:bar-unspecified
+`,
 		},
 		{
 			name: "simple build with variables",
@@ -65,9 +68,11 @@ builds:
 ENV foo {{.myTmplVar1}}
 `,
 			},
-			wantRegexp: `(?s).+
+			wantBuildRegexp: `(?s).+
 Step 2/2 : ENV foo myTmplVal1.+
 Successfully built [0-9a-f]+.+`,
+			wantTagRegexp: `testuser/foo:bar-[0-9]+
+`,
 		},
 		{
 			name: "build with outer for loop only",
@@ -94,13 +99,16 @@ ENV foo {{.myTmplVar1}}
 ENV {{.loopVar1}} {{.loopVar2}}
 `,
 			},
-			wantRegexp: `(?s).+
+			wantBuildRegexp: `(?s).+
 Step 2/3 : ENV foo myTmplVal1.+
 Step 3/3 : ENV hello farewell.+
 Successfully built [0-9a-f]+.+
 Step 2/3 : ENV foo myTmplVal1.+
 Step 3/3 : ENV world friends.+
 Successfully built [0-9a-f]+.+`,
+			wantTagRegexp: `testuser/foo:bar-hello-t[0-9]+
+testuser/foo:bar-world-t[0-9]+
+`,
 		},
 		{
 			name: "build with inner for loop only",
@@ -127,13 +135,16 @@ ENV foo {{.myTmplVar1}}
 ENV {{.loopVar1}} {{.loopVar2}}
 `,
 			},
-			wantRegexp: `(?s).+
+			wantBuildRegexp: `(?s).+
 Step 2/3 : ENV foo myTmplVal1.+
 Step 3/3 : ENV hello farewell.+
 Successfully built [0-9a-f]+.+
 Step 2/3 : ENV foo myTmplVal1.+
 Step 3/3 : ENV world friends.+
 Successfully built [0-9a-f]+.+`,
+			wantTagRegexp: `testuser/foo:bar-hello-t[0-9]+
+testuser/foo:bar-world-t[0-9]+
+`,
 		},
 		{
 			name: "build with inner for loop that uses variable",
@@ -156,10 +167,12 @@ ENV foo {{.myTmplVar1}}
 ENV bar {{.loopVar1}}
 `,
 			},
-			wantRegexp: `(?s).+
+			wantBuildRegexp: `(?s).+
 Step 2/3 : ENV foo myTmplVal1.+
 Step 3/3 : ENV bar myTmplVal1.+
 Successfully built [0-9a-f]+.+`,
+			wantTagRegexp: `testuser/foo:bar-myTmplVal1-t[0-9]+
+`,
 		},
 		{
 			name: "build with outer and inner for loop",
@@ -201,7 +214,7 @@ ENV bar {{.myTmplVar1}}
 ENV {{.outerLoopVar1}} {{.outerLoopVar2}}
 `,
 			},
-			wantRegexp: `(?s).+
+			wantBuildRegexp: `(?s).+
 Step 2/4 : ENV foo myTmplVal1.+
 Step 3/4 : ENV outer-hello outer-farewell.+
 Step 4/4 : ENV inner-hello inner-farewell.+
@@ -224,6 +237,13 @@ Successfully built [0-9a-f]+.+
 Step 2/3 : ENV bar myTmplVal1.+
 Step 3/3 : ENV outer-world outer-friends.+
 Successfully built [0-9a-f]+.+`,
+			wantTagRegexp: `testuser/test:foo-outer-hello-inner-hello-t[0-9]+
+testuser/test:foo-outer-hello-inner-world-t[0-9]+
+testuser/test:bar-outer-hello-t[0-9]+
+testuser/test:foo-outer-world-inner-hello-t[0-9]+
+testuser/test:foo-outer-world-inner-world-t[0-9]+
+testuser/test:bar-outer-world-t[0-9]+
+`,
 		},
 	} {
 		currCaseDir, err := ioutil.TempDir(tmpDir, fmt.Sprintf("case-%d", i))
@@ -243,14 +263,22 @@ Successfully built [0-9a-f]+.+`,
 			require.NoError(t, err, "Case %d: %s", i, currCase.name)
 		}
 
-		args := []string{"--config", configFile}
-		args = append(args, "build")
-		cmd := exec.Command(cli, args...)
-		cmd.Dir = currCaseDir
-		cmd.Env = append(os.Environ(), "CIRCLE_BUILD_NUM=13")
-		output, err := cmd.CombinedOutput()
-		require.NoError(t, err, "Output: %s", string(output))
+		for _, currSub := range []struct {
+			action     string
+			wantRegexp string
+		}{
+			{"build", currCase.wantBuildRegexp},
+			{"tag", currCase.wantTagRegexp},
+		} {
+			args := []string{"--config", configFile}
+			args = append(args, currSub.action)
+			cmd := exec.Command(cli, args...)
+			cmd.Dir = currCaseDir
+			cmd.Env = append(os.Environ(), "CIRCLE_BUILD_NUM=13")
+			output, err := cmd.CombinedOutput()
+			require.NoError(t, err, "Output: %s", string(output))
 
-		assert.Regexp(t, currCase.wantRegexp, string(output), "Case %d: %s", i, currCase.name)
+			assert.Regexp(t, currSub.wantRegexp, string(output), "Case %d, action %s: %s", i, currSub.action, currCase.name)
+		}
 	}
 }

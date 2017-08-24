@@ -6,6 +6,7 @@ package dockergen
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -28,6 +29,10 @@ func Build(builds []BuildParams, dockerGenParams Params, stdout io.Writer) error
 
 func Push(builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
 	return runActionLogic(runPushAction, builds, dockerGenParams, stdout)
+}
+
+func Tag(builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
+	return runActionLogic(runTagAction, builds, dockerGenParams, stdout)
 }
 
 func runActionLogic(action runActionFunc, builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
@@ -137,6 +142,11 @@ func runPushAction(build BuildParams, buildID, tag string, evalVarMap map[string
 	if err := cmd.Run(); err != nil {
 		return errors.Wrapf(err, "failed to execute command %v", cmd.Args)
 	}
+	return nil
+}
+
+func runTagAction(build BuildParams, buildID, tag string, evalVarMap map[string]string, stdout io.Writer) error {
+	fmt.Fprintln(stdout, tag)
 	return nil
 }
 
