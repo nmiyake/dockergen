@@ -268,7 +268,7 @@ testuser/test:bar-outer-world-t[0-9]+
 			wantRegexp string
 		}{
 			{"build", currCase.wantBuildRegexp},
-			{"tag", currCase.wantTagRegexp},
+			{"tags", currCase.wantTagRegexp},
 		} {
 			args := []string{"--config", configFile}
 			args = append(args, currSub.action)

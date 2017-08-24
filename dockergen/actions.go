@@ -31,7 +31,7 @@ func Push(builds []BuildParams, dockerGenParams Params, stdout io.Writer) error 
 	return runActionLogic(runPushAction, builds, dockerGenParams, stdout)
 }
 
-func Tag(builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
+func Tags(builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
 	return runActionLogic(runTagAction, builds, dockerGenParams, stdout)
 }
 
