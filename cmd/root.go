@@ -27,7 +27,6 @@ var RootCmd = &cobra.Command{
 	Short: "Builds, tags and publishes Dockerfiles based on templates",
 	Long: `Dockergen allows Dockerfiles to be generated programatically from templates
 based on declarative configuration.`,
-	//	Run: func(cmd *cobra.Command, args []string) { },
 }
 
 // Execute adds all child commands to the root command sets flags appropriately.
