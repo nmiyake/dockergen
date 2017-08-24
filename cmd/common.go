@@ -15,10 +15,6 @@ import (
 )
 
 func getCommonParams(cmd *cobra.Command, args []string) ([]dockergen.BuildParams, dockergen.Params, io.Writer, error) {
-	if len(args) > 0 {
-		args = args[1:]
-	}
-
 	var all []string
 	buildParams := cfg.BuildParams()
 	allParamsMap := make(map[string]dockergen.BuildParams)
