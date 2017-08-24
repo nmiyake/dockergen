@@ -17,7 +17,11 @@ var pushCmd = &cobra.Command{
 images in the configuration are pushed. If arguments are provided, they specify the names of
 the images whose tags should be pushed.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return dockergen.Push(getCommonParams(cmd, args))
+		builds, params, stdout, err := getCommonParams(cmd, args)
+		if err != nil {
+			return err
+		}
+		return dockergen.Push(builds, params, stdout)
 	},
 }
 
