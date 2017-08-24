@@ -97,6 +97,10 @@ func runInFor(f func(map[string]string) error, forVars map[string][]string, buil
 		if err := f(evaluatedVarMap); err != nil {
 			return err
 		}
+		// unset variables after iteration
+		for _, currForVar := range sortedForVarNames {
+			delete(evaluatedVarMap, currForVar)
+		}
 	}
 	return nil
 }
