@@ -72,10 +72,16 @@ func runActionLogic(action runActionFunc, builds []BuildParams, dockerGenParams 
 	}, dockerGenParams.For, buildID, evaluatedVarMap)
 }
 
-func runInFor(f func(map[string]string) error, forVars map[string][]string, buildID string, evaluatedVarMap map[string]string) error {
+func runInFor(f func(map[string]string) error, forVars map[string][]string, buildID string, evaluatedVarsIn map[string]string) error {
+	// copy input map so that modifications made in for loop are not persisted
+	evaluatedVars := make(map[string]string, len(evaluatedVarsIn))
+	for k, v := range evaluatedVarsIn {
+		evaluatedVars[k] = v
+	}
+
 	// if there are no "for" variables, run once
 	if len(forVars) == 0 {
-		return f(evaluatedVarMap)
+		return f(evaluatedVars)
 	}
 
 	// run build for each for loop variable
@@ -88,18 +94,14 @@ func runInFor(f func(map[string]string) error, forVars map[string][]string, buil
 	for i := 0; i < len(forVars[sortedForVarNames[0]]); i++ {
 		// set variable values for this iteration
 		for _, currForVar := range sortedForVarNames {
-			currForVarResult, err := executeGoTemplate(forVars[currForVar][i], buildID, evaluatedVarMap)
+			currForVarResult, err := executeGoTemplate(forVars[currForVar][i], buildID, evaluatedVars)
 			if err != nil {
 				return errors.Wrapf(err, "failed to execute template for 'for' variable %s at index %d", currForVar, i)
 			}
-			evaluatedVarMap[currForVar] = currForVarResult
+			evaluatedVars[currForVar] = currForVarResult
 		}
-		if err := f(evaluatedVarMap); err != nil {
+		if err := f(evaluatedVars); err != nil {
 			return err
-		}
-		// unset variables after iteration
-		for _, currForVar := range sortedForVarNames {
-			delete(evaluatedVarMap, currForVar)
 		}
 	}
 	return nil
