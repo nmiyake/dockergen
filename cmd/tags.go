@@ -10,8 +10,8 @@ import (
 	"github.com/nmiyake/dockergen/dockergen"
 )
 
-var tagCmd = &cobra.Command{
-	Use:   "tag",
+var tagsCmd = &cobra.Command{
+	Use:   "tags",
 	Short: "Prints the tags for the Docker files specified in the configuration",
 	Long: `Prints the tags for the images. If no arguments are provided, the tags for
 all of the images in the configuration are printed. If arguments are provided, they
@@ -21,10 +21,10 @@ specify the names of the images for which tags are printed.`,
 		if err != nil {
 			return err
 		}
-		return dockergen.Tag(builds, params, stdout)
+		return dockergen.Tags(builds, params, stdout)
 	},
 }
 
 func init() {
-	RootCmd.AddCommand(tagCmd)
+	RootCmd.AddCommand(tagsCmd)
 }
