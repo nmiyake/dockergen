@@ -55,24 +55,27 @@ func runActionLogic(action runActionFunc, builds []BuildParams, dockerGenParams 
 
 	evaluatedVarMap := make(map[string]string)
 	for k, v := range dockerGenParams.TemplateVars {
-		valResult, err := executeGoTemplate(v, buildID, nil)
+		valResult, err := executeGoTemplate(v, buildID, nil, nil, -1, -1)
 		if err != nil {
 			return errors.Wrapf(err, "failed to execute template for variable %s", k)
 		}
 		evaluatedVarMap[k] = valResult
 	}
 
-	return runInFor(func(curEvalVarMap map[string]string) error {
+	tags := make(map[string][][]string)
+	return runInFor(func(idx int, curEvalVarMap map[string]string) error {
 		for _, currBuild := range builds {
-			if err := runAction(action, currBuild, buildID, tagSuffixTmpl, curEvalVarMap, stdout); err != nil {
+			innerTags, err := runAction(action, currBuild, buildID, tagSuffixTmpl, curEvalVarMap, tags, idx, stdout)
+			if err != nil {
 				return errors.Wrapf(err, "failed to build %s", currBuild.Name)
 			}
+			tags[currBuild.Name] = append(tags[currBuild.Name], innerTags)
 		}
 		return nil
-	}, dockerGenParams.For, buildID, evaluatedVarMap)
+	}, dockerGenParams.For, buildID, evaluatedVarMap, tags)
 }
 
-func runInFor(f func(map[string]string) error, forVars map[string][]string, buildID string, evaluatedVarsIn map[string]string) error {
+func runInFor(f func(int, map[string]string) error, forVars map[string][]string, buildID string, evaluatedVarsIn map[string]string, inputTags map[string][][]string) error {
 	// copy input map so that modifications made in for loop are not persisted
 	evaluatedVars := make(map[string]string, len(evaluatedVarsIn))
 	for k, v := range evaluatedVarsIn {
@@ -81,7 +84,7 @@ func runInFor(f func(map[string]string) error, forVars map[string][]string, buil
 
 	// if there are no "for" variables, run once
 	if len(forVars) == 0 {
-		return f(evaluatedVars)
+		return f(0, evaluatedVars)
 	}
 
 	// run build for each for loop variable
@@ -94,26 +97,27 @@ func runInFor(f func(map[string]string) error, forVars map[string][]string, buil
 	for i := 0; i < len(forVars[sortedForVarNames[0]]); i++ {
 		// set variable values for this iteration
 		for _, currForVar := range sortedForVarNames {
-			currForVarResult, err := executeGoTemplate(forVars[currForVar][i], buildID, evaluatedVars)
+			currForVarResult, err := executeGoTemplate(forVars[currForVar][i], buildID, evaluatedVars, inputTags, -1, -1)
 			if err != nil {
 				return errors.Wrapf(err, "failed to execute template for 'for' variable %s at index %d", currForVar, i)
 			}
 			evaluatedVars[currForVar] = currForVarResult
 		}
-		if err := f(evaluatedVars); err != nil {
+		if err := f(i, evaluatedVars); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func runAction(action runActionFunc, build BuildParams, buildID, tagSuffixTmpl string, evaluatedVars map[string]string, stdout io.Writer) error {
-	return runInFor(func(curEvalVarMap map[string]string) error {
-		renderedTag, err := executeGoTemplate(build.Tag, buildID, curEvalVarMap)
+func runAction(action runActionFunc, build BuildParams, buildID, tagSuffixTmpl string, evaluatedVars map[string]string, inputTags map[string][][]string, outerIdx int, stdout io.Writer) ([]string, error) {
+	var tags []string
+	err := runInFor(func(innerIdx int, curEvalVarMap map[string]string) error {
+		renderedTag, err := executeGoTemplate(build.Tag, buildID, curEvalVarMap, inputTags, outerIdx, innerIdx)
 		if err != nil {
 			return errors.Wrapf(err, "failed to execute template for tag")
 		}
-		renderedTagSuffix, err := executeGoTemplate(tagSuffixTmpl, buildID, curEvalVarMap)
+		renderedTagSuffix, err := executeGoTemplate(tagSuffixTmpl, buildID, curEvalVarMap, inputTags, outerIdx, innerIdx)
 		if err != nil {
 			return errors.Wrapf(err, "failed to execute template for tag suffix")
 		}
@@ -121,19 +125,21 @@ func runAction(action runActionFunc, build BuildParams, buildID, tagSuffixTmpl s
 		if tag == "" {
 			return errors.Errorf("tag must be non-empty")
 		}
-		return action(build, buildID, tag, curEvalVarMap, stdout)
-	}, build.For, buildID, evaluatedVars)
+		tags = append(tags, tag)
+		return action(build, buildID, tag, curEvalVarMap, inputTags, outerIdx, innerIdx, stdout)
+	}, build.For, buildID, evaluatedVars, inputTags)
+	return tags, err
 }
 
-type runActionFunc func(build BuildParams, buildID, tag string, evalVarMap map[string]string, stdout io.Writer) error
+type runActionFunc func(build BuildParams, buildID, tag string, evalVarMap map[string]string, inputTags map[string][][]string, outerIdx, innerIdx int, stdout io.Writer) error
 
-func runBuildAction(build BuildParams, buildID, tag string, evalVarMap map[string]string, stdout io.Writer) error {
+func runBuildAction(build BuildParams, buildID, tag string, evalVarMap map[string]string, inputTags map[string][][]string, outerIdx, innerIdx int, stdout io.Writer) error {
 	bytes, err := ioutil.ReadFile(build.DockerfileTemplatePath)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read Dockerfile template")
 	}
 
-	renderedDockerfile, err := executeGoTemplate(string(bytes), buildID, evalVarMap)
+	renderedDockerfile, err := executeGoTemplate(string(bytes), buildID, evalVarMap, inputTags, outerIdx, innerIdx)
 	if err != nil {
 		return errors.Wrapf(err, "failed to execute template for Dockerfile")
 	}
@@ -141,7 +147,7 @@ func runBuildAction(build BuildParams, buildID, tag string, evalVarMap map[strin
 	return executeDockerBuild(renderedDockerfile, tag, build.DockerfileTemplatePath, stdout)
 }
 
-func runPushAction(build BuildParams, buildID, tag string, evalVarMap map[string]string, stdout io.Writer) error {
+func runPushAction(build BuildParams, buildID, tag string, evalVarMap map[string]string, inputTags map[string][][]string, outerIdx, innerIdx int, stdout io.Writer) error {
 	cmd := exec.Command("docker", "push", tag)
 	cmd.Stdout = stdout
 	cmd.Stderr = stdout
@@ -151,7 +157,7 @@ func runPushAction(build BuildParams, buildID, tag string, evalVarMap map[string
 	return nil
 }
 
-func runTagAction(build BuildParams, buildID, tag string, evalVarMap map[string]string, stdout io.Writer) error {
+func runTagAction(build BuildParams, buildID, tag string, evalVarMap map[string]string, inputTags map[string][][]string, outerIdx, innerIdx int, stdout io.Writer) error {
 	fmt.Fprintln(stdout, tag)
 	return nil
 }
@@ -187,10 +193,35 @@ func executeDockerBuild(dockerfileContents, tag, dockerfileTemplatePath string, 
 	return nil
 }
 
-func executeGoTemplate(tmplContent, buildID string, vars map[string]string) (string, error) {
+func executeGoTemplate(tmplContent, buildID string, vars map[string]string, inputTags map[string][][]string, outerIdx, innerIdx int) (string, error) {
 	funcs := template.FuncMap{
-		"getenv":  os.Getenv,
+		"Getenv":  os.Getenv,
 		"BuildID": func() string { return buildID },
+		"Tag": func(image string, i, j int) (string, error) {
+			tagSlice, ok := inputTags[image]
+			if !ok {
+				return "", fmt.Errorf("unknown image name %s", image)
+			}
+			if i >= len(tagSlice) {
+				return "", fmt.Errorf("outer index out of bounds: %d > %d", i, len(tagSlice))
+			}
+			if j >= len(tagSlice[i]) {
+				return "", fmt.Errorf("inner index out of bounds: %d > %d", j, len(tagSlice[i]))
+			}
+			return tagSlice[i][j], nil
+		},
+		"OuterIdx": func() (int, error) {
+			if outerIdx < 0 {
+				return 0, fmt.Errorf("OuterIdx was not set")
+			}
+			return outerIdx, nil
+		},
+		"InnerIdx": func() (int, error) {
+			if innerIdx < 0 {
+				return 0, fmt.Errorf("InnerIdx was not set")
+			}
+			return innerIdx, nil
+		},
 	}
 	tmpl, err := template.New("env").Funcs(funcs).Parse(tmplContent)
 	if err != nil {

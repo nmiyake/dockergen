@@ -245,6 +245,118 @@ testuser/test:foo-outer-world-inner-world-t[0-9]+
 testuser/test:bar-outer-world-t[0-9]+
 `,
 		},
+		{
+			name: "build with tag dependencies",
+			config: `
+build-id-var: CIRCLE_BUILD_NUM
+tag-suffix: -t{{BuildID}}
+builds:
+  foo-template:
+    docker-template: foo/Dockerfile_template.txt
+    tag: testuser/test:foo
+    requires:
+      - bar-template
+  bar-template:
+    docker-template: bar/Dockerfile_template.txt
+    tag: testuser/test:bar
+`,
+			filesToWrite: map[string]string{
+				"foo/Dockerfile_template.txt": `FROM {{Tag "bar-template" 0 0}}
+ENV foo "foo"
+`,
+				"bar/Dockerfile_template.txt": `FROM scratch
+ENV bar "bar"
+`,
+			},
+			wantBuildRegexp: `(?s).+
+Step 1/2 : FROM scratch.+
+Step 2/2 : ENV bar "bar".+
+Successfully built [0-9a-f]+.+
+Step 1/2 : FROM testuser/test:bar-t13.+
+Step 2/2 : ENV foo "foo".+
+Successfully built [0-9a-f]+.+`,
+			wantTagRegexp: `testuser/test:bar-t13
+testuser/test:foo-t13`,
+		},
+		{
+			name: "build with outer and inner for loop with dependencies",
+			config: `
+build-id-var: CIRCLE_BUILD_NUM
+tag-suffix: -t{{BuildID}}
+template-vars:
+  myTmplVar1: myTmplVal1
+for:
+  outerLoopVar1:
+    - outer-hello
+    - outer-world
+  outerLoopVar2:
+    - outer-farewell
+    - outer-friends
+builds:
+  foo-template:
+    docker-template: foo/Dockerfile_template.txt
+    tag: testuser/test:foo-{{.outerLoopVar1}}-{{.innerLoopVar1}}
+    for:
+      innerLoopVar1:
+        - inner-hello
+        - inner-world
+      innerLoopVar2:
+        - inner-farewell
+        - inner-friends
+  bar-template:
+    docker-template: bar/Dockerfile_template.txt
+    tag: testuser/test:bar-{{.outerLoopVar1}}
+    requires:
+      - foo-template
+`,
+			filesToWrite: map[string]string{
+				"foo/Dockerfile_template.txt": `FROM scratch
+ENV foo {{.myTmplVar1}}
+ENV {{.outerLoopVar1}} {{.outerLoopVar2}}
+ENV {{.innerLoopVar1}} {{.innerLoopVar2}}
+`,
+				"bar/Dockerfile_template.txt": `FROM {{Tag "foo-template" OuterIdx 0}}
+ENV bar {{.myTmplVar1}}
+ENV {{.outerLoopVar1}} {{.outerLoopVar2}}
+`,
+			},
+			wantBuildRegexp: `(?s).+
+Step 1/4 : FROM scratch.+
+Step 2/4 : ENV foo myTmplVal1.+
+Step 3/4 : ENV outer-hello outer-farewell.+
+Step 4/4 : ENV inner-hello inner-farewell.+
+Successfully built [0-9a-f]+.+
+Step 1/4 : FROM scratch.+
+Step 2/4 : ENV foo myTmplVal1.+
+Step 3/4 : ENV outer-hello outer-farewell.+
+Step 4/4 : ENV inner-world inner-friends.+
+Successfully built [0-9a-f]+.+
+Step 1/3 : FROM testuser/test:foo-outer-hello-inner-hello-t13.+
+Step 2/3 : ENV bar myTmplVal1.+
+Step 3/3 : ENV outer-hello outer-farewell.+
+Successfully built [0-9a-f]+.+
+Step 1/4 : FROM scratch.+
+Step 2/4 : ENV foo myTmplVal1.+
+Step 3/4 : ENV outer-world outer-friends.+
+Step 4/4 : ENV inner-hello inner-farewell.+
+Successfully built [0-9a-f]+.+
+Step 1/4 : FROM scratch.+
+Step 2/4 : ENV foo myTmplVal1.+
+Step 3/4 : ENV outer-world outer-friends.+
+Step 4/4 : ENV inner-world inner-friends.+
+Successfully built [0-9a-f]+.+
+Step 1/3 : FROM testuser/test:foo-outer-world-inner-hello-t13.+
+Step 2/3 : ENV bar myTmplVal1.+
+Step 3/3 : ENV outer-world outer-friends.+
+Successfully built [0-9a-f]+.+`,
+			wantTagRegexp: `testuser/test:foo-outer-hello-inner-hello-t[0-9]+
+testuser/test:foo-outer-hello-inner-world-t[0-9]+
+testuser/test:bar-outer-hello-t[0-9]+
+testuser/test:foo-outer-world-inner-hello-t[0-9]+
+testuser/test:foo-outer-world-inner-world-t[0-9]+
+testuser/test:bar-outer-world-t[0-9]+
+`,
+		},
 	} {
 		currCaseDir, err := ioutil.TempDir(tmpDir, fmt.Sprintf("case-%d", i))
 		require.NoError(t, err, "Case %d: %s", i, currCase.name)
@@ -276,7 +388,7 @@ testuser/test:bar-outer-world-t[0-9]+
 			cmd.Dir = currCaseDir
 			cmd.Env = append(os.Environ(), "CIRCLE_BUILD_NUM=13")
 			output, err := cmd.CombinedOutput()
-			require.NoError(t, err, "Output: %s", string(output))
+			require.NoError(t, err, "Case %d, action %s: %s\nOutput: %s", i, currSub.action, currCase.name, string(output))
 
 			assert.Regexp(t, currSub.wantRegexp, string(output), "Case %d, action %s: %s", i, currSub.action, currCase.name)
 		}
