@@ -17,11 +17,11 @@ var tagsCmd = &cobra.Command{
 all of the images in the configuration are printed. If arguments are provided, they
 specify the names of the images for which tags are printed.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		builds, params, err := getCommonParams(args)
+		executor, builds, params, err := getCommonParams(args)
 		if err != nil {
 			return err
 		}
-		return dockergen.Tags(builds, params, cmd.OutOrStdout())
+		return dockergen.Tags(executor, builds, params, cmd.OutOrStdout())
 	},
 }
 

@@ -18,6 +18,7 @@ import (
 
 var (
 	cfgFile string
+	dryRun  bool
 	cfg     dockergen.Config
 )
 
@@ -56,4 +57,6 @@ func init() {
 		}
 		return nil
 	}
+
+	RootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "print commands that would be run without running them")
 }
