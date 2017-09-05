@@ -16,11 +16,11 @@ import (
 // images are returned. If the names are non-empty and any of the specified names are not valid images, an error is
 // returned. Otherwise, the returned build parameters are all of the builds required to build the requested images
 // (including dependencies) sorted in topological order.
-func getCommonParams(imageNames []string) ([]dockergen.BuildParams, dockergen.Params, error) {
+func getCommonParams(imageNames []string) (dockergen.Executor, []dockergen.BuildParams, dockergen.Params, error) {
 	var all []string
 	buildParams, err := cfg.BuildParams()
 	if err != nil {
-		return nil, dockergen.Params{}, errors.WithStack(err)
+		return nil, nil, dockergen.Params{}, errors.WithStack(err)
 	}
 
 	allParamsMap := make(map[string]dockergen.BuildParams)
@@ -44,7 +44,7 @@ func getCommonParams(imageNames []string) ([]dockergen.BuildParams, dockergen.Pa
 		if len(missing) > 0 {
 			sort.Strings(missing)
 			sort.Strings(all)
-			return nil, dockergen.Params{}, errors.Errorf("The following specified entries were not defined in configuration: %v\nValid entries: %v", missing, all)
+			return nil, nil, dockergen.Params{}, errors.Errorf("The following specified entries were not defined in configuration: %v\nValid entries: %v", missing, all)
 		}
 
 		// expand parameters to include all required builds
@@ -61,5 +61,10 @@ func getCommonParams(imageNames []string) ([]dockergen.BuildParams, dockergen.Pa
 		}
 		buildParams = expandedParams
 	}
-	return dockergen.TopologicalSort(buildParams), cfg.ToParams(), nil
+
+	executor := dockergen.NewCmdExecutor()
+	if dryRun {
+		executor = dockergen.NewPrintCmdExecutor()
+	}
+	return executor, dockergen.TopologicalSort(buildParams), cfg.ToParams(), nil
 }

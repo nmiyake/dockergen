@@ -10,7 +10,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"text/template"
@@ -23,19 +22,19 @@ const (
 	defaultBuildID   = "unspecified"
 )
 
-func Build(builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
-	return runActionLogic(runBuildAction, builds, dockerGenParams, stdout)
+func Build(executor Executor, builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
+	return runActionLogic(runBuildAction, executor, builds, dockerGenParams, stdout)
 }
 
-func Push(builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
-	return runActionLogic(runPushAction, builds, dockerGenParams, stdout)
+func Push(executor Executor, builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
+	return runActionLogic(runPushAction, executor, builds, dockerGenParams, stdout)
 }
 
-func Tags(builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
-	return runActionLogic(runTagAction, builds, dockerGenParams, stdout)
+func Tags(executor Executor, builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
+	return runActionLogic(runTagAction, executor, builds, dockerGenParams, stdout)
 }
 
-func runActionLogic(action runActionFunc, builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
+func runActionLogic(action runActionFunc, executor Executor, builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
 	if err := dockerGenParams.Validate(); err != nil {
 		return errors.Wrapf(err, "invalid Docker generator params")
 	}
@@ -65,7 +64,7 @@ func runActionLogic(action runActionFunc, builds []BuildParams, dockerGenParams 
 	tags := make(map[string][][]string)
 	return runInFor(func(idx int, curEvalVarMap map[string]string) error {
 		for _, currBuild := range builds {
-			innerTags, err := runAction(action, currBuild, buildID, tagSuffixTmpl, curEvalVarMap, tags, idx, stdout)
+			innerTags, err := runAction(action, executor, currBuild, buildID, tagSuffixTmpl, curEvalVarMap, tags, idx, stdout)
 			if err != nil {
 				return errors.Wrapf(err, "failed to build %s", currBuild.Name)
 			}
@@ -110,7 +109,7 @@ func runInFor(f func(int, map[string]string) error, forVars map[string][]string,
 	return nil
 }
 
-func runAction(action runActionFunc, build BuildParams, buildID, tagSuffixTmpl string, evaluatedVars map[string]string, inputTags map[string][][]string, outerIdx int, stdout io.Writer) ([]string, error) {
+func runAction(action runActionFunc, executor Executor, build BuildParams, buildID, tagSuffixTmpl string, evaluatedVars map[string]string, inputTags map[string][][]string, outerIdx int, stdout io.Writer) ([]string, error) {
 	var tags []string
 	err := runInFor(func(innerIdx int, curEvalVarMap map[string]string) error {
 		renderedTag, err := executeGoTemplate(build.Tag, buildID, curEvalVarMap, inputTags, outerIdx, innerIdx)
@@ -127,6 +126,7 @@ func runAction(action runActionFunc, build BuildParams, buildID, tagSuffixTmpl s
 		}
 		tags = append(tags, tag)
 		return action(runParams{
+			executor:   executor,
 			build:      build,
 			buildID:    buildID,
 			tag:        tag,
@@ -143,6 +143,7 @@ func runAction(action runActionFunc, build BuildParams, buildID, tagSuffixTmpl s
 type runActionFunc func(params runParams) error
 
 type runParams struct {
+	executor   Executor
 	build      BuildParams
 	buildID    string
 	tag        string
@@ -164,15 +165,15 @@ func runBuildAction(params runParams) error {
 		return errors.Wrapf(err, "failed to execute template for Dockerfile")
 	}
 
-	return executeDockerBuild(renderedDockerfile, params.tag, params.build.DockerfileTemplatePath, params.stdout)
+	return executeDockerBuild(params.executor, renderedDockerfile, params.tag, params.build.DockerfileTemplatePath, params.stdout)
 }
 
 func runPushAction(params runParams) error {
-	cmd := exec.Command("docker", "push", params.tag)
-	cmd.Stdout = params.stdout
-	cmd.Stderr = params.stdout
-	if err := cmd.Run(); err != nil {
-		return errors.Wrapf(err, "failed to execute command %v", cmd.Args)
+	args := []string{
+		"push", params.tag,
+	}
+	if err := params.executor.Run(params.stdout, "docker", args...); err != nil {
+		return errors.Wrapf(err, "failed to execute command %v", args)
 	}
 	return nil
 }
@@ -182,7 +183,7 @@ func runTagAction(params runParams) error {
 	return nil
 }
 
-func executeDockerBuild(dockerfileContents, tag, dockerfileTemplatePath string, stdout io.Writer) (rerr error) {
+func executeDockerBuild(executor Executor, dockerfileContents, tag, dockerfileTemplatePath string, stdout io.Writer) (rerr error) {
 	if dockerfileTemplatePath == "" {
 		return errors.Errorf("dockerFileLoc must be non-empty")
 	}
@@ -204,11 +205,11 @@ func executeDockerBuild(dockerfileContents, tag, dockerfileTemplatePath string, 
 		return errors.Wrapf(err, "failed to close file")
 	}
 
-	cmd := exec.Command("docker", "build", "-t", tag, "-f", f.Name(), filepath.Dir(dockerfileTemplatePath))
-	cmd.Stdout = stdout
-	cmd.Stderr = stdout
-	if err := cmd.Run(); err != nil {
-		return errors.Wrapf(err, "failed to execute command %v", cmd.Args)
+	args := []string{
+		"build", "-t", tag, "-f", f.Name(), filepath.Dir(dockerfileTemplatePath),
+	}
+	if err := executor.Run(stdout, "docker", args...); err != nil {
+		return errors.Wrapf(err, "failed to execute command %v", args)
 	}
 	return nil
 }
