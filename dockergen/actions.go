@@ -22,19 +22,19 @@ const (
 	defaultBuildID   = "unspecified"
 )
 
-func Build(executor Executor, builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
-	return runActionLogic(runBuildAction, executor, builds, dockerGenParams, stdout)
+func Build(executors map[string]Executor, builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
+	return runActionLogic(runBuildAction, executors, builds, dockerGenParams, stdout)
 }
 
-func Push(executor Executor, builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
-	return runActionLogic(runPushAction, executor, builds, dockerGenParams, stdout)
+func Push(executors map[string]Executor, builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
+	return runActionLogic(runPushAction, executors, builds, dockerGenParams, stdout)
 }
 
-func Tags(executor Executor, builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
-	return runActionLogic(runTagAction, executor, builds, dockerGenParams, stdout)
+func Tags(executors map[string]Executor, builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
+	return runActionLogic(runTagAction, executors, builds, dockerGenParams, stdout)
 }
 
-func runActionLogic(action runActionFunc, executor Executor, builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
+func runActionLogic(action runActionFunc, executors map[string]Executor, builds []BuildParams, dockerGenParams Params, stdout io.Writer) error {
 	if err := dockerGenParams.Validate(); err != nil {
 		return errors.Wrapf(err, "invalid Docker generator params")
 	}
@@ -64,7 +64,7 @@ func runActionLogic(action runActionFunc, executor Executor, builds []BuildParam
 	tags := make(map[string][][]string)
 	return runInFor(func(idx int, curEvalVarMap map[string]string) error {
 		for _, currBuild := range builds {
-			innerTags, err := runAction(action, executor, currBuild, buildID, tagSuffixTmpl, curEvalVarMap, tags, idx, stdout)
+			innerTags, err := runAction(action, executors[currBuild.Name], currBuild, buildID, tagSuffixTmpl, curEvalVarMap, tags, idx, stdout)
 			if err != nil {
 				return errors.Wrapf(err, "failed to build %s", currBuild.Name)
 			}

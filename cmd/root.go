@@ -19,6 +19,7 @@ import (
 var (
 	cfgFile string
 	dryRun  bool
+	noDeps  bool
 	cfg     dockergen.Config
 )
 
@@ -59,4 +60,5 @@ func init() {
 	}
 
 	RootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "print commands that would be run without running them")
+	RootCmd.PersistentFlags().BoolVar(&noDeps, "no-deps", false, "runs task only for the specified images (do not add dependencies)")
 }

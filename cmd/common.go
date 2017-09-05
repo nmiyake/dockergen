@@ -16,19 +16,27 @@ import (
 // images are returned. If the names are non-empty and any of the specified names are not valid images, an error is
 // returned. Otherwise, the returned build parameters are all of the builds required to build the requested images
 // (including dependencies) sorted in topological order.
-func getCommonParams(imageNames []string) (dockergen.Executor, []dockergen.BuildParams, dockergen.Params, error) {
+func getCommonParams(imageNames []string) (map[string]dockergen.Executor, []dockergen.BuildParams, dockergen.Params, error) {
 	var all []string
-	buildParams, err := cfg.BuildParams()
+	allBuildParams, err := cfg.BuildParams()
 	if err != nil {
 		return nil, nil, dockergen.Params{}, errors.WithStack(err)
 	}
 
-	allParamsMap := make(map[string]dockergen.BuildParams)
-	for _, param := range buildParams {
-		allParamsMap[param.Name] = param
-		all = append(all, param.Name)
+	executor := dockergen.NewCmdExecutor()
+	if dryRun {
+		executor = dockergen.NewPrintCmdExecutor()
 	}
 
+	allParamsMap := make(map[string]dockergen.BuildParams)
+	allExecutorsMap := make(map[string]dockergen.Executor)
+	for _, param := range allBuildParams {
+		allParamsMap[param.Name] = param
+		all = append(all, param.Name)
+		allExecutorsMap[param.Name] = executor
+	}
+
+	imagesToBuild := allBuildParams
 	// if args were specified, run only the requested builds
 	if len(imageNames) != 0 {
 		var missing []string
@@ -46,25 +54,31 @@ func getCommonParams(imageNames []string) (dockergen.Executor, []dockergen.Build
 			sort.Strings(all)
 			return nil, nil, dockergen.Params{}, errors.Errorf("The following specified entries were not defined in configuration: %v\nValid entries: %v", missing, all)
 		}
+		imagesToBuild = requestedBuildParams
 
-		// expand parameters to include all required builds
-		var expandedParams []dockergen.BuildParams
-		currParamsMap := make(map[string]struct{})
+		dependentExecutor := executor
+		if noDeps {
+			// if dependencies should not be built, use a no-op executor for them
+			dependentExecutor = dockergen.NoopExecutor()
+		}
+
+		// expand imagesToBuild to include all required dependent builds. If "noDeps" is true, this is still run, but
+		// will use a no-op executor and thus will not perform the actual operations. However, the dependent builds must
+		// still be executed to properly populate the tag map.
+		seen := make(map[string]struct{})
+		for _, image := range imagesToBuild {
+			seen[image.Name] = struct{}{}
+		}
 		for _, param := range requestedBuildParams {
-			for _, currReq := range dockergen.RequiredBuilds(param, buildParams) {
-				if _, ok := currParamsMap[currReq.Name]; ok {
+			for _, currReq := range dockergen.RequiredBuilds(param, allBuildParams) {
+				if _, ok := seen[currReq.Name]; ok {
 					continue
 				}
-				expandedParams = append(expandedParams, currReq)
-				currParamsMap[currReq.Name] = struct{}{}
+				imagesToBuild = append(imagesToBuild, currReq)
+				seen[currReq.Name] = struct{}{}
+				allExecutorsMap[currReq.Name] = dependentExecutor
 			}
 		}
-		buildParams = expandedParams
 	}
-
-	executor := dockergen.NewCmdExecutor()
-	if dryRun {
-		executor = dockergen.NewPrintCmdExecutor()
-	}
-	return executor, dockergen.TopologicalSort(buildParams), cfg.ToParams(), nil
+	return allExecutorsMap, dockergen.TopologicalSort(imagesToBuild), cfg.ToParams(), nil
 }
