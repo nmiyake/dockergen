@@ -17,11 +17,11 @@ var buildCmd = &cobra.Command{
 in the configuration are built. If arguments are provided, they specify the names of the
 images that should be built.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		builds, params, stdout, err := getCommonParams(cmd, args)
+		builds, params, err := getCommonParams(args)
 		if err != nil {
 			return err
 		}
-		return dockergen.Build(builds, params, stdout)
+		return dockergen.Build(builds, params, cmd.OutOrStdout())
 	},
 }
 
