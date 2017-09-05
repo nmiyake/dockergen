@@ -126,39 +126,59 @@ func runAction(action runActionFunc, build BuildParams, buildID, tagSuffixTmpl s
 			return errors.Errorf("tag must be non-empty")
 		}
 		tags = append(tags, tag)
-		return action(build, buildID, tag, curEvalVarMap, inputTags, outerIdx, innerIdx, stdout)
+		return action(runParams{
+			build:      build,
+			buildID:    buildID,
+			tag:        tag,
+			evalVarMap: curEvalVarMap,
+			inputTags:  inputTags,
+			outerIdx:   outerIdx,
+			innerIdx:   innerIdx,
+			stdout:     stdout,
+		})
 	}, build.For, buildID, evaluatedVars, inputTags)
 	return tags, err
 }
 
-type runActionFunc func(build BuildParams, buildID, tag string, evalVarMap map[string]string, inputTags map[string][][]string, outerIdx, innerIdx int, stdout io.Writer) error
+type runActionFunc func(params runParams) error
 
-func runBuildAction(build BuildParams, buildID, tag string, evalVarMap map[string]string, inputTags map[string][][]string, outerIdx, innerIdx int, stdout io.Writer) error {
-	bytes, err := ioutil.ReadFile(build.DockerfileTemplatePath)
+type runParams struct {
+	build      BuildParams
+	buildID    string
+	tag        string
+	evalVarMap map[string]string
+	inputTags  map[string][][]string
+	outerIdx   int
+	innerIdx   int
+	stdout     io.Writer
+}
+
+func runBuildAction(params runParams) error {
+	bytes, err := ioutil.ReadFile(params.build.DockerfileTemplatePath)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read Dockerfile template")
 	}
 
-	renderedDockerfile, err := executeGoTemplate(string(bytes), buildID, evalVarMap, inputTags, outerIdx, innerIdx)
+	renderedDockerfile, err := executeGoTemplate(string(bytes), params.buildID, params.evalVarMap, params.inputTags, params.outerIdx, params.innerIdx)
 	if err != nil {
 		return errors.Wrapf(err, "failed to execute template for Dockerfile")
 	}
 
-	return executeDockerBuild(renderedDockerfile, tag, build.DockerfileTemplatePath, stdout)
+	return executeDockerBuild(renderedDockerfile, params.tag, params.build.DockerfileTemplatePath, params.stdout)
 }
 
-func runPushAction(build BuildParams, buildID, tag string, evalVarMap map[string]string, inputTags map[string][][]string, outerIdx, innerIdx int, stdout io.Writer) error {
-	cmd := exec.Command("docker", "push", tag)
-	cmd.Stdout = stdout
-	cmd.Stderr = stdout
+func runPushAction(params runParams) error {
+	cmd := exec.Command("docker", "push", params.tag)
+	cmd.Stdout = params.stdout
+	cmd.Stderr = params.stdout
 	if err := cmd.Run(); err != nil {
 		return errors.Wrapf(err, "failed to execute command %v", cmd.Args)
 	}
 	return nil
 }
 
-func runTagAction(build BuildParams, buildID, tag string, evalVarMap map[string]string, inputTags map[string][][]string, outerIdx, innerIdx int, stdout io.Writer) error {
-	fmt.Fprintln(stdout, tag)
+func runTagAction(params runParams) error {
+	fmt.Fprintln(params.stdout, params.tag)
 	return nil
 }
 
