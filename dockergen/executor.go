@@ -38,3 +38,13 @@ func (e *printCmdExecutor) Run(w io.Writer, name string, args ...string) error {
 	_, err := io.WriteString(w, fmt.Sprintln(name, strings.Join(args, " ")))
 	return err
 }
+
+func NoopExecutor() Executor {
+	return &noopExecutor{}
+}
+
+type noopExecutor struct{}
+
+func (e *noopExecutor) Run(w io.Writer, name string, args ...string) error {
+	return nil
+}
