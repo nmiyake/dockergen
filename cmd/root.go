@@ -9,11 +9,10 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/nmiyake/dockergen/dockergen"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
-
-	"github.com/nmiyake/dockergen/dockergen"
 )
 
 var (

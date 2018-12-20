@@ -7,9 +7,8 @@ package cmd
 import (
 	"sort"
 
-	"github.com/pkg/errors"
-
 	"github.com/nmiyake/dockergen/dockergen"
+	"github.com/pkg/errors"
 )
 
 // getCommonParams returns the parameters for the action based on the specified image names. If the names are empty, all
