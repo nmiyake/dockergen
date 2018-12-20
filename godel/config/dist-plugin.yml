@@ -1,5 +1,4 @@
 products:
   dockergen:
     build:
-      output-dir: ./build
       main-pkg: .
