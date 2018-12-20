@@ -1,54 +1,46 @@
-go-version: &go-version
-  run: go version
+version: 2.1
 
-godel-cache-restore: &godel-cache-restore
-  restore_cache:
-    keys:
-      - godel-cache-{{ checksum "godelw" }}-v1
+orbs:
+  go: palantir/go@dev:develop-5b319175ff3286271daa401bc1c1a9e419e88dc5
+  godel: palantir/godel@dev:develop-a09ca259cd8d6c54d0fa7f9020b734d878cbb79e
 
-godel-version: &godel-version
-  run: ./godelw version
+executor-param: &executor-param
+  executor:
+    name: go/darwin-linux-no-cgo
+    owner-repo: palantir/distgo
 
-godel-cache-save: &godel-cache-save
-  save_cache:
-    key: godel-cache-{{ checksum "godelw" }}-v1
-    paths:
-      - ~/.godel
+all-tags-filter: &all-tags-filter
+  filters:
+    tags:
+      only: /.*/
 
-define-tests-dir: &define-tests-dir
-  run: echo 'export TESTS_DIR=/tmp/test-results' >> $BASH_ENV
-
-mkdir-tests-dir: &mkdir-tests-dir
-  run: mkdir -p "${TESTS_DIR}"
-
-go-install-packages: &go-install-packages
-  run: go install $(./godelw packages)
-
-store-test-results: &store-test-results
-  type: test-results-store
-  path: /tmp/test-results
-
-store-artifacts: &store-artifacts
-  type: artifacts-store
-  path: /tmp/test-results
-  destination: test-results
-
-version: 2
-jobs:
-  build:
-    working_directory: /go/src/github.com/nmiyake/dockergen
-    docker:
-      - image: nmiyake/go:go-1.11.4-docker-17.06.0-ce-t144
-    steps:
-      - setup_remote_docker
-      - checkout
-      - *go-version
-      - *godel-cache-restore
-      - *godel-version
-      - *godel-cache-save
-      - *define-tests-dir
-      - *mkdir-tests-dir
-      - *go-install-packages
-      - run: ./godelw verify --junit-output="$TESTS_DIR/$CIRCLE_PROJECT_REPONAME-tests.xml"
-      - *store-test-results
-      - *store-artifacts
+workflows:
+  version: 2
+  dist-publish:
+    jobs:
+      - godel/verify:
+          <<: *all-tags-filter
+          <<: *executor-param
+      - godel/test:
+          <<: *all-tags-filter
+          executor:
+            name: go/golang-docker
+            owner-repo: palantir/distgo
+          docker: true
+      - godel/dist:
+          <<: *all-tags-filter
+          <<: *executor-param
+      - godel/bintray-publish:
+          requires:
+            - godel/verify
+            - godel/test
+            - godel/dist
+          filters:
+            tags:
+              only: /^v?[0-9]+(\.[0-9]+)+(-rc[0-9]+)?(-alpha[0-9]+)?$/
+            branches:
+              ignore: /.*/
+          <<: *executor-param
+          bintray-subject: palantir
+          bintray-repo: releases
+          bintray-product: distgo
