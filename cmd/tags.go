@@ -5,9 +5,8 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
-
 	"github.com/nmiyake/dockergen/dockergen"
+	"github.com/spf13/cobra"
 )
 
 var tagsCmd = &cobra.Command{

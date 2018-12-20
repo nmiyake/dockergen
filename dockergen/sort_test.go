@@ -7,11 +7,10 @@ package dockergen_test
 import (
 	"testing"
 
+	"github.com/nmiyake/dockergen/dockergen"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
-
-	"github.com/nmiyake/dockergen/dockergen"
 )
 
 func TestTopologicalSort(t *testing.T) {
