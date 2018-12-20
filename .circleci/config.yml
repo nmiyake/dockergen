@@ -38,7 +38,7 @@ jobs:
   build:
     working_directory: /go/src/github.com/nmiyake/dockergen
     docker:
-      - image: nmiyake/go:go-1.9-docker-17.03.0-ce-t111
+      - image: nmiyake/go:go-1.11.4-docker-17.06.0-ce-t144
     steps:
       - setup_remote_docker
       - checkout
