@@ -1,54 +1,25 @@
-go-version: &go-version
-  run: go version
+owner-repo: &owner-repo
+  owner-repo: nmiyake/dockergen
 
-godel-cache-restore: &godel-cache-restore
-  restore_cache:
-    keys:
-      - godel-cache-{{ checksum "godelw" }}-v1
+version: 2.1
 
-godel-version: &godel-version
-  run: ./godelw version
+orbs:
+  go: palantir/go@0.0.6
+  godel: palantir/godel@0.0.3
 
-godel-cache-save: &godel-cache-save
-  save_cache:
-    key: godel-cache-{{ checksum "godelw" }}-v1
-    paths:
-      - ~/.godel
+executor-param: &executor-param
+  executor:
+    name: go/darwin-linux-no-cgo
+    <<: *owner-repo
 
-define-tests-dir: &define-tests-dir
-  run: echo 'export TESTS_DIR=/tmp/test-results' >> $BASH_ENV
-
-mkdir-tests-dir: &mkdir-tests-dir
-  run: mkdir -p "${TESTS_DIR}"
-
-go-install-packages: &go-install-packages
-  run: go install $(./godelw packages)
-
-store-test-results: &store-test-results
-  type: test-results-store
-  path: /tmp/test-results
-
-store-artifacts: &store-artifacts
-  type: artifacts-store
-  path: /tmp/test-results
-  destination: test-results
-
-version: 2
-jobs:
-  build:
-    working_directory: /go/src/github.com/nmiyake/dockergen
-    docker:
-      - image: nmiyake/go:go-1.9-docker-17.03.0-ce-t111
-    steps:
-      - setup_remote_docker
-      - checkout
-      - *go-version
-      - *godel-cache-restore
-      - *godel-version
-      - *godel-cache-save
-      - *define-tests-dir
-      - *mkdir-tests-dir
-      - *go-install-packages
-      - run: ./godelw verify --junit-output="$TESTS_DIR/$CIRCLE_PROJECT_REPONAME-tests.xml"
-      - *store-test-results
-      - *store-artifacts
+workflows:
+  version: 2
+  verify-test:
+    jobs:
+      - godel/verify:
+          <<: *executor-param
+      - godel/test:
+          executor:
+            name: go/golang-docker
+            <<: *owner-repo
+          docker: true

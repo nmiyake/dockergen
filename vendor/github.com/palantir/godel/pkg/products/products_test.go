@@ -28,15 +28,18 @@ import (
 func TestList(t *testing.T) {
 	p, err := products.List()
 	require.NoError(t, err)
-	assert.Equal(t, []string{"distgo", "godel", "gonform", "gunit", "okgo"}, p)
+	assert.Equal(t, []string{"godel"}, p)
 }
 
 func TestBin(t *testing.T) {
+	// Do not test v1 API on current project because it uses v2 godel.
+	t.SkipNow()
+
 	bin, err := products.Bin("godel")
 	require.NoError(t, err)
 	cmd := exec.Command(bin, "version")
 	output, err := cmd.CombinedOutput()
-	require.NoError(t, err)
+	require.NoError(t, err, "Command %v failed.\nOutput:\n%s\nError:\n%v", cmd.Args, string(output), err)
 
 	assert.True(t, strings.HasPrefix(string(output), "godel version"))
 }
