@@ -2,10 +2,10 @@
 
 
 [[projects]]
-  digest = "1:56c130d885a4aacae1dd9c7b71cfe39912c7ebc1ff7d2b46083c8812996dc43b"
+  digest = "1:a2c1d0e43bd3baaa071d1b9ed72c27d78169b2b269f71c105ac4ba34b1be4a39"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
-  pruneopts = ""
+  pruneopts = "UT"
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
   version = "v1.1.0"
 
@@ -14,74 +14,74 @@
   digest = "1:870d441fe217b8e689d7949fef6e43efbc787e50f200cb1e70dbca9204a1d6be"
   name = "github.com/inconshreveable/mousetrap"
   packages = ["."]
-  pruneopts = ""
+  pruneopts = "UT"
   revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
 
 [[projects]]
   branch = "develop"
-  digest = "1:154069432c7dfe83b0db4a4e54134fbf95bfb1b5a1bfee77906e3ad5795bc078"
+  digest = "1:fc40b261ea28239f638b4fc366a297038b702a096cfe28af137715909d16fabe"
   name = "github.com/nmiyake/pkg"
   packages = ["dirs"]
-  pruneopts = ""
+  pruneopts = "UT"
   revision = "df873ad19d6f60ce7ddeea343e397c2a60642ae4"
 
 [[projects]]
-  digest = "1:0152e72ad49a5c90b2c2cdd2fd40e289921dc45ae093d5a6b32dfd371fde54d0"
+  digest = "1:66b905851a6938966d574b183d120074ab32f28448bc05b10e71e61f6b40e3eb"
   name = "github.com/palantir/godel"
   packages = ["pkg/products/v2/products"]
-  pruneopts = ""
+  pruneopts = "UT"
   revision = "c84c8364bb86cadfda2d76c6a1fa00ccbe359967"
   version = "v2.10.0"
 
 [[projects]]
-  digest = "1:7365acd48986e205ccb8652cc746f09c8b7876030d53710ea6ef7d0bd0dcd7ca"
+  digest = "1:40e195917a951a8bf867cd05de2a46aaf1806c50cf92eebf4c16f78cd196f747"
   name = "github.com/pkg/errors"
   packages = ["."]
-  pruneopts = ""
+  pruneopts = "UT"
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
   version = "v0.8.0"
 
 [[projects]]
-  digest = "1:256484dbbcd271f9ecebc6795b2df8cad4c458dd0f5fd82a8c2fa0c29f233411"
+  digest = "1:0028cb19b2e4c3112225cd871870f2d9cf49b9b4276531f03438a88e94be86fe"
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
-  pruneopts = ""
+  pruneopts = "UT"
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
   version = "v1.0.0"
 
 [[projects]]
   branch = "master"
-  digest = "1:648ba1be7d7d649fe3aafd13093e10e37a561f10011b61569b5be741153c5111"
+  digest = "1:c399f984b13aa25a7c018c790b5f4360a07a0c164eb65ead4cc8ad8cb6665c13"
   name = "github.com/spf13/cobra"
   packages = ["."]
-  pruneopts = ""
+  pruneopts = "UT"
   revision = "ca57f0f5dba473a8a58765d16d7e811fb8027add"
 
 [[projects]]
   branch = "master"
-  digest = "1:261bc565833ef4f02121450d74eb88d5ae4bd74bfe5d0e862cddb8550ec35000"
+  digest = "1:1b21a2b4058a779f290c7341cd93267492e0ecea6c8b54f64a4a5fd7ff131034"
   name = "github.com/spf13/pflag"
   packages = ["."]
-  pruneopts = ""
+  pruneopts = "UT"
   revision = "e57e3eeb33f795204c1ca35f56c44f83227c6e66"
 
 [[projects]]
   branch = "master"
-  digest = "1:ee43b3a19af6c5981aa6a51a076c27be5afa580bae74284e9b225b90b7c9dd6e"
+  digest = "1:ae19440bec3dcf084c2e042bed5cd3c7d8836f08cf78d05796fd8966f09df17d"
   name = "github.com/stretchr/testify"
   packages = [
     "assert",
     "require",
   ]
-  pruneopts = ""
+  pruneopts = "UT"
   revision = "e68c5c520826657b647fb9090f1620f8862e7b72"
 
 [[projects]]
   branch = "v2"
-  digest = "1:a3a9e86d4cd7b56a405875f475a6bb29f4614692fddf33e10eca5c839250b49e"
+  digest = "1:35c04c23c8aef680782e117c67e29750453c92d11448da616d2e399887e5fc86"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
-  pruneopts = ""
+  pruneopts = "UT"
   revision = "cd8b52f8269e0feb286dfeef29f8fe4d5b397e0b"
 
 [solve-meta]
