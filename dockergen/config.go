@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 type Config struct {
@@ -70,11 +70,11 @@ func (c *Config) BuildParams() ([]BuildParams, error) {
 	for _, v := range c.Builds {
 		val := v.Value.(BuildConfig)
 		currParam := BuildParams{
-			Name: v.Key.(string),
+			Name:                   v.Key.(string),
 			DockerfileTemplatePath: val.DockerTemplatePath,
-			Tag:      val.Tag,
-			For:      val.For,
-			Requires: val.Requires,
+			Tag:                    val.Tag,
+			For:                    val.For,
+			Requires:               val.Requires,
 		}
 		params = append(params, currParam)
 		currFirstLevelDeps := make(map[string]struct{})
