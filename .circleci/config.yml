@@ -1,25 +1,74 @@
-owner-repo: &owner-repo
-  owner-repo: nmiyake/dockergen
-
-version: 2.1
-
-orbs:
-  go: palantir/go@0.0.6
-  godel: palantir/godel@0.0.3
-
-executor-param: &executor-param
-  executor:
-    name: go/darwin-linux-no-cgo
-    <<: *owner-repo
-
+version: 2
+jobs:
+  godel/verify:
+    docker:
+      - image: palantirtechnologies/go:go-darwin-linux-no-cgo-1.11.4-t2
+        environment:
+          CGO_ENABLED: 0
+    steps:
+      - checkout
+      - run:
+          command: go version
+      - restore_cache:
+          keys:
+            - go-cache-v1-{{ .Branch }}-{{ .Revision }}
+            - go-cache-v1-{{ .Branch }}-
+            - go-cache-v1-
+      - restore_cache:
+          keys:
+            - godel-cache-{{ checksum "godelw" }}-{{ checksum "godel/config/godel.yml"
+              }}-v1
+      - run:
+          command: ./godelw version
+      - save_cache:
+          key: godel-cache-{{ checksum "godelw" }}-{{ checksum "godel/config/godel.yml"
+            }}-v1
+          paths:
+            - ~/.godel
+      - run:
+          command: ./godelw verify --apply=false --skip-test
+      - save_cache:
+          key: go-cache-v1-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - "/root/.cache/go-build"
+  godel/test:
+    docker:
+      - image: palantirtechnologies/go:go-1.11.4-docker-17.06.0-ce-t2
+    steps:
+      - checkout
+      - run:
+          command: go version
+      - setup_remote_docker
+      - restore_cache:
+          keys:
+            - godel-cache-{{ checksum "godelw" }}-{{ checksum "godel/config/godel.yml"
+              }}-v1
+      - restore_cache:
+          keys:
+            - go-cache-v1-{{ .Branch }}-{{ .Revision }}
+            - go-cache-v1-{{ .Branch }}-
+            - go-cache-v1-
+      - run:
+          command: ./godelw version
+      - save_cache:
+          key: godel-cache-{{ checksum "godelw" }}-{{ checksum "godel/config/godel.yml"
+            }}-v1
+          paths:
+            - ~/.godel
+      - run:
+          command: echo 'export TESTS_DIR=/tmp/test-results' >> $BASH_ENV
+      - run:
+          command: mkdir -p "${TESTS_DIR}"
+      - run:
+          command: ./godelw test --junit-output="$TESTS_DIR/$CIRCLE_PROJECT_REPONAME-tests.xml"
+      - store_test_results:
+          path: /tmp/test-results
+      - store_artifacts:
+          path: /tmp/test-results
+          destination: test-results
 workflows:
   version: 2
   verify-test:
     jobs:
-      - godel/verify:
-          <<: *executor-param
-      - godel/test:
-          executor:
-            name: go/golang-docker
-            <<: *owner-repo
-          docker: true
+      - godel/verify
+      - godel/test
