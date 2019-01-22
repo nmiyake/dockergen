@@ -20,8 +20,15 @@ jobs:
             }}-v1
           paths:
             - ~/.godel
+      - restore_cache:
+          keys:
+            - go-mod-cache-{{ checksum "go.mod" }}-{{ checksum "go.sum" }}-v1
       - run:
           command: ./godelw verify --apply=false --skip-test
+      - save_cache:
+          key: go-mod-cache-{{ checksum "go.mod" }}-{{ checksum "go.sum" }}-v1
+          paths:
+            - /go/pkg/mod
   godel/test:
     docker:
       - image: palantirtechnologies/go:go-1.11.4-docker-17.06.0-ce-t2
