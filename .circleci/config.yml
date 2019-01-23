@@ -47,6 +47,9 @@ jobs:
               }}-v1
       - restore_cache:
           keys:
+            - go-cache-tests-v1-{{ .Branch }}-{{ .Revision }}
+            - go-cache-tests-v1-{{ .Branch }}-
+            - go-cache-tests-v1-
             - go-cache-v1-{{ .Branch }}-{{ .Revision }}
             - go-cache-v1-{{ .Branch }}-
             - go-cache-v1-
@@ -63,6 +66,10 @@ jobs:
           command: mkdir -p "${TESTS_DIR}"
       - run:
           command: ./godelw test --junit-output="$TESTS_DIR/$CIRCLE_PROJECT_REPONAME-tests.xml"
+      - save_cache:
+          key: go-cache-tests-v1-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - "/root/.cache/go-build"
       - store_test_results:
           path: /tmp/test-results
       - store_artifacts:
