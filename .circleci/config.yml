@@ -5,6 +5,7 @@ jobs:
       - image: palantirtechnologies/go:go-darwin-linux-no-cgo-1.11.4-t2
         environment:
           CGO_ENABLED: 0
+    working_directory: /go/src/github.com/nmiyake/dockergen
     steps:
       - checkout
       - run:
@@ -34,6 +35,7 @@ jobs:
   godel/test:
     docker:
       - image: palantirtechnologies/go:go-1.11.4-docker-17.06.0-ce-t2
+    working_directory: /go/src/github.com/nmiyake/dockergen
     steps:
       - checkout
       - run:
