@@ -1,68 +1,34 @@
-version: 2
+version: 2.1
+
+owner-repo: &owner-repo
+  owner-repo: nmiyake/dockergen
+
+orbs:
+  go: palantir/go@dev:develop-f9c9f00e87d034185b3fcb451b4871223e6469b4
+
 jobs:
-  godel/verify:
-    docker:
-      - image: palantirtechnologies/go:go-darwin-linux-no-cgo-1.11.4-t2
-        environment:
-          CGO_ENABLED: 0
-    working_directory: ""
+  verify:
+    executor:
+      name: go/darwin-linux-no-cgo
+      <<: *owner-repo
     steps:
-      - checkout
-      - run:
-          command: go version
-      - restore_cache:
-          keys:
-            - godel-cache-{{ checksum "godelw" }}-{{ checksum "godel/config/godel.yml"
-              }}-v1
-      - run:
-          command: ./godelw version
-      - save_cache:
-          key: godel-cache-{{ checksum "godelw" }}-{{ checksum "godel/config/godel.yml"
-            }}-v1
-          paths:
-            - ~/.godel
-      - restore_cache:
-          keys:
-            - go-mod-cache-{{ checksum "go.mod" }}-{{ checksum "go.sum" }}-v1
-      - run:
-          command: ./godelw verify --apply=false --skip-test
-      - save_cache:
-          key: go-mod-cache-{{ checksum "go.mod" }}-{{ checksum "go.sum" }}-v1
-          paths:
-            - /go/pkg/mod
-  godel/test:
-    docker:
-      - image: palantirtechnologies/go:go-1.11.4-docker-17.06.0-ce-t2
+      - run: go version
+      - run: |
+             echo "GO111MODULE: ${GO111MODULE}"
+
+  verify-no-mod:
+    executor:
+      name: go/darwin-linux-no-cgo
+      <<: *owner-repo
+      module: false
     steps:
-      - checkout
-      - run:
-          command: go version
-      - setup_remote_docker
-      - restore_cache:
-          keys:
-            - godel-cache-{{ checksum "godelw" }}-{{ checksum "godel/config/godel.yml"
-              }}-v1
-      - run:
-          command: ./godelw version
-      - save_cache:
-          key: godel-cache-{{ checksum "godelw" }}-{{ checksum "godel/config/godel.yml"
-            }}-v1
-          paths:
-            - ~/.godel
-      - run:
-          command: echo 'export TESTS_DIR=/tmp/test-results' >> $BASH_ENV
-      - run:
-          command: mkdir -p "${TESTS_DIR}"
-      - run:
-          command: ./godelw test --junit-output="$TESTS_DIR/$CIRCLE_PROJECT_REPONAME-tests.xml"
-      - store_test_results:
-          path: /tmp/test-results
-      - store_artifacts:
-          path: /tmp/test-results
-          destination: test-results
+      - run: go version
+      - run: |
+          echo "GO111MODULE: ${GO111MODULE}"
+
 workflows:
   version: 2
   verify-test:
     jobs:
-      - godel/verify
-      - godel/test
+      - verify
+      - verify-no-mod
