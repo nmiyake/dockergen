@@ -5,6 +5,7 @@ jobs:
       - image: palantirtechnologies/go:go-darwin-linux-no-cgo-1.11.4-t2
         environment:
           CGO_ENABLED: 0
+    working_directory: ""
     steps:
       - checkout
       - run:
