@@ -16,6 +16,8 @@ workflows:
   version: 2
   verify-test:
     jobs:
+      - godel/build-cache:
+          <<: *executor-param
       - godel/verify:
           <<: *executor-param
       - godel/test:
