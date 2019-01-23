@@ -1,34 +1,25 @@
-version: 2.1
-
 owner-repo: &owner-repo
   owner-repo: nmiyake/dockergen
 
+version: 2.1
+
 orbs:
   go: palantir/go@dev:develop-f9c9f00e87d034185b3fcb451b4871223e6469b4
+  godel: palantir/godel@0.0.5
 
-jobs:
-  verify:
-    executor:
-      name: go/darwin-linux-no-cgo
-      <<: *owner-repo
-    steps:
-      - run: go version
-      - run: |
-             echo "GO111MODULE: ${GO111MODULE}"
-
-  verify-no-mod:
-    executor:
-      name: go/darwin-linux-no-cgo
-      <<: *owner-repo
-      module: false
-    steps:
-      - run: go version
-      - run: |
-          echo "GO111MODULE: ${GO111MODULE}"
+executor-param: &executor-param
+  executor:
+    name: go/darwin-linux-no-cgo
+    <<: *owner-repo
 
 workflows:
   version: 2
   verify-test:
     jobs:
-      - verify
-      - verify-no-mod
+      - godel/verify:
+          <<: *executor-param
+      - godel/test:
+          executor:
+            name: go/golang-docker
+            <<: *owner-repo
+          docker: true
