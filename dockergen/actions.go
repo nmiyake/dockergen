@@ -179,7 +179,7 @@ func runPushAction(params runParams) error {
 }
 
 func runTagAction(params runParams) error {
-	fmt.Fprintln(params.stdout, params.tag)
+	_, _ = fmt.Fprintln(params.stdout, params.tag)
 	return nil
 }
 
